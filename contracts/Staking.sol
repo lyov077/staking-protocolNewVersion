@@ -4,6 +4,8 @@ pragma solidity 0.8.6;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 
 contract Staking is Ownable {
     using SafeERC20 for IERC20;
@@ -19,15 +21,23 @@ contract Staking is Ownable {
     uint256 public totalStaked;
     mapping(address => UserInfo) public userInfo;
 
+    IERC20 public token;
     IERC20 public stakedToken;
+    IUniswapV2Router02 public router;
 
     event Stake(address indexed user, uint256 amount);
     event Claim(address indexed user, uint256 amount);
     event UnStaked(address indexed user, uint256 amount);
 
-    constructor(IERC20 _stakedToken, uint256 _rewardPerBlock) {
+    constructor(
+        IERC20 _stakedToken,
+        uint256 _rewardPerBlock,
+        IERC20 _token
+    ) {
         stakedToken = _stakedToken;
         rewardPerBlock = _rewardPerBlock;
+        token = IERC20(_token);
+        router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     }
 
     function stake(uint256 _amount) external {
@@ -53,10 +63,7 @@ contract Staking is Ownable {
     function pendingReward() external view returns (uint256) {
         UserInfo memory user = userInfo[msg.sender];
         return
-            (user.amount *
-                (accRewardPerShare +
-                    (getReward(lastRewardBlock, block.number) * 1e12) /
-                    totalStaked)) /
+            (user.amount * (accRewardPerShare +(getReward(lastRewardBlock, block.number) * 1e12) /totalStaked)) /
             1e12 -
             user.rewardDebt;
     }
@@ -129,5 +136,35 @@ contract Staking is Ownable {
         }
 
         stakedToken.safeTransfer(_to, _amount);
+    }
+
+    function speedStake(
+        uint256 _amountOutMin,
+        uint256 _deadline,
+        uint256 _amountTokenMin,
+        uint256 _amountETHMin
+    ) external payable {
+        distributeReward();
+        uint256[] memory amounts;
+        address[] memory path = new address[](2);
+        path[0] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        path[1] = address(token);
+        amounts = router.swapExactETHForTokens{value: msg.value / 2}(
+            _amountOutMin,
+            path,
+            address(this),
+            _deadline
+        );
+        token.approve(address(router), amounts[1]);
+
+        (, , uint256 liquidity) = router.addLiquidityETH{value: msg.value / 2}(
+            address(token),
+            amounts[1],
+            _amountTokenMin,
+            _amountETHMin,
+            address(this),
+            _deadline
+        );
+        _stake(liquidity);
     }
 }

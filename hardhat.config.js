@@ -48,7 +48,13 @@ const PRIVATE_KEY = "43e2458f1c385b0a7c1186c0693a16c63ea148bd8b97982373cd5138fa6
  */
 module.exports = {
   networks: {
-    hardhat: {},
+    hardhat: {
+      forking: {
+        enabled: true,
+        url: `https://eth-mainnet.alchemyapi.io/v2/hOzQc-RVIceGHwDh_iu1bIwlaXemJvzy`,
+        blockNumber: 13093511
+      },
+    },
     rinkeby: {
       url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
       accounts: [`0x${PRIVATE_KEY}`],
@@ -65,9 +71,10 @@ module.exports = {
       "4": "0x5f2cFa351B7d4b973d341fdB2cB154794c0a899c",
     },
     caller: {
-      default: 0,
-      "3": "0x5f2cFa351B7d4b973d341fdB2cB154794c0a899c",
-      "4": "0x5f2cFa351B7d4b973d341fdB2cB154794c0a899c",
+      default: 1
+    },
+    staker: {
+      default: 2
     }
   },
   etherscan: {
